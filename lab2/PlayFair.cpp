@@ -23,6 +23,7 @@ class PlayfairCipher {
         }
 
         string decrypt(string &cipher_text) {
+            process_text(cipher_text); // Remove spaces
             return encrypt_decrypt_digraphs(cipher_text, false);
         }
 
@@ -31,8 +32,10 @@ class PlayfairCipher {
 
         // Private functions
         void create_grid(string &key) {
+            process_text(key);
             string grid_string = key + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // Including 'J'
             grid_string = generate_grid_string(grid_string); // Removes duplicates in the string for correct order.
+            cout << grid_string << endl;
 
             // Fill the grid with the grid_string characters
             int str_index = 0;
@@ -67,16 +70,16 @@ class PlayfairCipher {
         void process_text(string &text) {
             // remove_if() brings all the characters to be removed to the end of the string 
             // and returns an iterator to the start of those characters to be removed
-            text.erase(remove_if(text.begin(), text.end(), is_not_alpha)); // Remove non alphabetic characters
+            text.erase(remove_if(text.begin(), text.end(), is_not_alpha), text.end()); // Remove non alphabetic characters
 
             // replace all J with I in the entire string
-            text.replace(text.begin(), text.end(), 'J', 'I');
+            replace(text.begin(), text.end(), 'J', 'I');
             // Turn string to lower case
             transform(text.begin(), text.end(), text.begin(), ::toupper);
 
             // Fix repeating characters and odd lengths
-            for (int i = 0; i < text.length(); i++) {
-                if (text[i] == text[i + 2]) { // Check if letter 1 equals letter 2 in the pair
+            for (int i = 0; i < text.length() - 1; i+=2) {
+                if (text[i] == text[i + 1]) { // Check if letter 1 equals letter 2 in the pair
                     text.insert(i+1, "X"); // insert X at the second letter
                 }
             }
@@ -91,7 +94,8 @@ class PlayfairCipher {
 
         string encrypt_decrypt_digraphs(string processed_plain_text, bool encrypt = true) {
             string result_text;
-            for (int i = 0; i < processed_plain_text.length(); i+=2) {
+            result_text.clear();
+            for (int i = 0; i < processed_plain_text.length() - 1; i+=2) {
                 char letter_1 = processed_plain_text[i];
                 char letter_2 = processed_plain_text[i + 1];
 
@@ -100,17 +104,18 @@ class PlayfairCipher {
                 auto [row_2, col_2] = get_position(letter_2);
 
                 if (row_1 == row_2) { // If same row
-                    result_text += grid[row_1][col_1 + ((encrypt? 1 : 4) % 5)]; // Add encrypted/decrypted letter 1
-                    result_text += grid[row_1][col_2 + ((encrypt? 1 : 4) % 5)]; // Add encrypted/decrypted letter 2
+                    result_text += grid[row_1][(col_1 + (encrypt? 1 : 4)) % 5]; // Add encrypted/decrypted letter 1
+                    result_text += grid[row_1][(col_2 + (encrypt? 1 : 4)) % 5]; // Add encrypted/decrypted letter 2
                 }
                 else if (col_1 == col_2) { // If same column
-                    result_text += grid[row_1 + ((encrypt? 1 : 4) % 5)][col_1]; // Add encrypted/decrypted letter 1
-                    result_text += grid[row_2 + ((encrypt? 1 : 4) % 5)][col_1]; // Add encrypted/decrypted letter 2
+                    result_text += grid[(row_1 + (encrypt? 1 : 4)) % 5][col_1]; // Add encrypted/decrypted letter 1
+                    result_text += grid[(row_2 + (encrypt? 1 : 4)) % 5][col_1]; // Add encrypted/decrypted letter 2
                 }
                 else { // If neither same row or column
                     result_text += grid[row_1][col_2]; // Add encrypted/decrypted letter 1
                     result_text += grid[row_2][col_1]; // Add encrypted/decrypted letter 2
                 }
+                result_text += " ";
             }
             return result_text;
         }
@@ -118,14 +123,12 @@ class PlayfairCipher {
         pair<int, int> get_position(char letter) {
             // iterate through the grid and find the position of the letter
             for (int i = 0; i < 5; i ++) 
-                for (int j = 0; j < 6; j++) {
+                for (int j = 0; j < 5; j++) {
                     if (letter == grid[i][j])
                         return {i, j}; // Return row and column of the letter as pair
                 }
             return {-1, -1}; // Just so that you dont get an error
         }
-
-
 };
 
 int main() {
@@ -137,7 +140,8 @@ int main() {
     PlayfairCipher p1(key);
 
     cout << "Enter plain text: ";
-    cin >> plain_text;
+    cin.ignore();
+    getline(cin, plain_text);
     cipher_text = p1.encrypt(plain_text);
 
     cout << "Encrypted Text (Cipher Text): "  << endl << cipher_text << endl;
