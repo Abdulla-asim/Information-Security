@@ -29,19 +29,19 @@ class PlayfairCipher {
 
 
     private:
-
         // Private functions
         void create_grid(string &key) {
             process_text(key);
             string grid_string = key + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // Including 'J'
             grid_string = generate_grid_string(grid_string); // Removes duplicates in the string for correct order.
-            cout << grid_string << endl;
 
             // Fill the grid with the grid_string characters
             int str_index = 0;
             for (int i = 0; i < 5; i++) 
                 for (int j = 0; j < 5; j++) 
                     grid[i][j] = grid_string[str_index++];
+
+            view_grid();
         }
 
         string generate_grid_string(string &str) {
