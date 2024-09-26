@@ -24,7 +24,9 @@ class PlayfairCipher {
 
         string decrypt(string &cipher_text) {
             process_text(cipher_text); // Remove spaces
-            return encrypt_decrypt_digraphs(cipher_text, false);
+            string plain_text = encrypt_decrypt_digraphs(cipher_text, false);
+            string new_str = remove_extra(plain_text);
+            return new_str;
         }
 
 
@@ -80,12 +82,32 @@ class PlayfairCipher {
             // Fix repeating characters and odd lengths
             for (int i = 0; i < text.length() - 1; i+=2) {
                 if (text[i] == text[i + 1]) { // Check if letter 1 equals letter 2 in the pair
-                    text.insert(i+1, "X"); // insert X at the second letter
+                    text.insert(i+1, "Q"); // insert X at the second letter
                 }
             }
-            // Fix odd length by placing X at the end
-            if (text.length() % 2 != 0)
-                text += 'X';
+
+            
+            if (text.length() % 2 != 0) {
+                text += 'Q';  // Adds 'Q' only if the length is odd during encryption
+            }
+        }
+
+        string remove_extra(string &text) {
+            string new_str = "";
+
+            if (text[text.length() - 2] == 'Q') {
+                text.erase(text.length() - 2, 1);  // Removes 'Q' if it's the last character during decryption
+            } 
+
+            for (int i = 0; i < text.length(); i+=1) {
+                if (text[i] == text[i + 2] && text[i+1] == 'Q') // Check if letter 1 equals letter 3 
+                    continue;
+                else 
+                    new_str += text[i];
+                    //text.erase(i+1, 1);
+            }
+
+            return new_str;
         }
 
         static bool is_not_alpha(char ch) {
@@ -135,12 +157,10 @@ int main() {
     string key, plain_text, cipher_text;
 
     cout << "Enter your key: ";
-    cin >> key;
-
+    getline(cin, key);
     PlayfairCipher p1(key);
 
     cout << "Enter plain text: ";
-    cin.ignore();
     getline(cin, plain_text);
     cipher_text = p1.encrypt(plain_text);
 
