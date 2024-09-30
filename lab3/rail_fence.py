@@ -1,6 +1,5 @@
-import math as m
+def rail_fence_encrypt(text, key):
 
-def rail_fence(text, key):
     #rows = int(input("Enter the key (int): "))
     rows = key
     #text = input("Enter the message: ")
@@ -8,24 +7,27 @@ def rail_fence(text, key):
 
     matrix = [[] for _ in range (rows)]
 
-    x = 0
+    index = 0
     direction = 1;
-    i = 0
+    i = 0 # Text letters index
 
     while True:
         if (i >= length):
-            matrix[x].append('x')
+            matrix[index].append('x')
         else:
-            matrix[x].append(text[i])
+            matrix[index].append(text[i])
             
-        if (x >= rows-1):
-            if (length <= i):
+        if (index == rows-1):
+            if (i >= length):
                 break
             direction = -1 
-        elif (x == 0):
+        elif (index == 0):
             direction = 1
-        x += direction
+        index += direction
         i += 1
+
+    for r in matrix:
+        print(r)
 
     cipher_text = ""
     for row in matrix:
@@ -34,5 +36,12 @@ def rail_fence(text, key):
 
     return cipher_text
 
+def rail_fence_decrypt(cipher_text, key):
+    rows = key
+    matrix = [[] for _ in range(rows)]
+    length = len(cipher_text)
 
-print (rail_fence("Information", 4))
+    
+
+
+print(f"Cipher Text: {rail_fence_encrypt("Information", 4)}")
