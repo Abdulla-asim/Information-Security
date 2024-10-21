@@ -11,16 +11,17 @@ def print_block(block, segment_size=8):
         print(block[j: j + segment_size], end=" ")
     print("\n")
 
-def text_to_bits(text, encoding='ascii'): 
-    bits = ''
-    for char in text:
-        encoded_text = char.encode(encoding) # encode the character to utf-8 or anotehr encoding (e.g. ASCII)
-        integer = int.from_bytes(encoded_text, 'big') # convert the encoded text to an integer (big endian format)
-        bits += bin(integer)[2:].zfill(8) # convert the character to binary and add it to the bits
+def key_to_64_bits(key64):
+    binary_key = ''.join(format(ord(c), '08b') for c in key64)
+    return binary_key[:64].ljust(64, '0')
+
+def text_to_bits(text, encoding='utf-8'):
+    bits = "".join(format(ord(char), '08b') for char in text)
     return bits
 
+
 def des_plaintext_block(text, block_size=64):
-    print("Text: ", text) ### print the text
+    # print("Text: ", text) ### print the text
     blocks = [] # list to store the blocks
     bits = text_to_bits(text) # convert the text to bits
     bits = bits + "0" * (block_size - len(bits) % block_size) # pad the bits with zeros to make the length a multiple of block_size
@@ -28,7 +29,7 @@ def des_plaintext_block(text, block_size=64):
         block = bits[i:i + block_size] # get one block of bits
         blocks.append(block) # add the block to the list of blocks
 
-    print_blocks(blocks) ### print the blocks
+    # print_blocks(blocks) ### print the blocks
     return blocks
 
 def des_initial_permutation(block : str):
@@ -50,8 +51,8 @@ def des_initial_permutation(block : str):
         permuted_block += block[i - 1]
 
     # print the initial permutation block
-    print("Initial Permutation Block: ", end="")
-    print_block(permuted_block, 8)
+    #print("Initial Permutation Block: ", end="")
+    #print_block(permuted_block, 8)
 
     return permuted_block
 
@@ -74,8 +75,8 @@ def des_final_permutation(block : str):
         permuted_block += block[i - 1]
 
     # print the final permutation block
-    print("Final Permutation Block: ", end="")
-    print_block(permuted_block, 8)
+    #print("Final Permutation Block: ", end="")
+    #print_block(permuted_block, 8)
     
     return permuted_block
 
@@ -94,15 +95,15 @@ def expansion_permutation(block: str):
         28, 29, 30, 31, 32,  1
     ]
 
-    print("Right Block: ", end="")
-    print_block(block, 4) # print the block
+    #print("Right Block: ", end="")
+    #print_block(block, 4) # print the block
     expanded_block = "" # 48 bit block in the end
     for i in E_table:
         expanded_block += block[i-1] # i-1 because index starts at 0
 
     # print the expanded block
-    print("Expanded Block: ", end="")  
-    print_block(expanded_block, 6)
+    #print("Expanded Block: ", end="")  
+    #print_block(expanded_block, 6)
     
     return expanded_block
 
@@ -126,8 +127,8 @@ def permuted_choice_1(key_64: str):
         key_56 += key_64[i-1]
 
     # print the key after parity drop
-    print("Key after PC 1: ", end="")
-    print_block(key_56, 7)
+    #print("Key after PC 1: ", end="")
+    #print_block(key_56, 7)
 
     return key_56
 
@@ -136,16 +137,16 @@ def left_shift(key_28: str, round_no: int):
     if round_no in [1, 2, 9, 16]:
         # left shift by 1
         key = key_28[1:] + key_28[0]
-        print("Key after left shift: ", end="")
+        #print("Key after left shift: ", end="")
         #print_block(key_28[1:] + key_28[:1], 6)
-        print_block(key, 7)
+        #print_block(key, 7)
 
         return key
     else:
         # left shift by 2
         key = key_28[1:] + key_28[0]
-        print("Key after left shift: ", end="")
-        print_block(key, 7)
+        # print("Key after left shift: ", end="")
+        # print_block(key, 7)
 
         return key
 
@@ -167,8 +168,8 @@ def permuted_choice_2(key_56: str):
         key_48 += key_56[i-1]
 
     # print the key after parity drop
-    print("Key after PC 2: ", end="")
-    print_block(key_48, 6)
+    #print("Key after PC 2: ", end="")
+    #print_block(key_48, 6)
 
     return key_48
 
@@ -285,64 +286,70 @@ def write_file(file, data):
     with open(file, 'w') as f:
         f.write(data)
 
-### Main encryption function
-def des_encryption(plain_text: str, key_64: str):
 
-    # Rounds
+def des_encryption(plain_text: str, key_64: str):
+    # Number of rounds
     rounds = 16
-    # Key list
     keys = []
-    # plain text block list
+    
+    # Split plain text into blocks
     blocks = des_plaintext_block(plain_text)
-    # cipher text
     cipher_text = ''
 
-    ### KEY 
-    print("Read Key: ", key_64)
-    key_64 = text_to_bits(key_64) # convert key to bits
+    # Correct key padding
+    key_64 = key_to_64_bits(key_64)
+    print("Key64 in bits:", key_64)
 
-    print("Key in bits: ", end="")
-    print_block(key_64, 8) # Key in bits
-
+    # Generate initial 56-bit key (key schedule)
     key_56 = permuted_choice_1(key_64)
     key_28_1, key_28_2 = key_56[:28], key_56[28:]
 
-    ### Initial Permutation
+    # Generate all round keys
+    for round in range(1, rounds + 1):
+        # Apply left shift based on round
+        key_28_1 = left_shift(key_28_1, round)
+        key_28_2 = left_shift(key_28_2, round)
+        
+        key_56 = key_28_1 + key_28_2
+        key_48 = permuted_choice_2(key_56)
+        keys.append(key_48)
+
+    # Initial permutation for all blocks
     for i in range(len(blocks)):
         blocks[i] = des_initial_permutation(blocks[i])
 
+    # Rounds of encryption
     for round in range(1, rounds + 1):
-        ### Key Scheduling
-        key_28_1 = left_shift(key_28_1, round)
-        key_28_2 = left_shift(key_28_2, round)
-
-        key_56 = key_28_1 + key_28_2
-        key_48 = permuted_choice_2(key_56)
-        ## append the key to be used later
-        keys.append(key_48)
-
-
+        key_48 = keys[round - 1]
+        
         for i in range(len(blocks)):
-            ### Block
-            block_64 = blocks[i] # ith block
-
-            block_32_left, block_32_right = block_64[:32], block_64[32:] # divide into left and right blocks
-            next_block_32_left = block_32_right
+            block_64 = blocks[i]
+            block_32_left, block_32_right = block_64[:32], block_64[32:]
+            
+            # Expansion of right half
             block_48 = expansion_permutation(block_32_right)
-
-            ### Encrypting
-            # Xor right block with key
+            
+            # XOR with round key
             f = ''.join('1' if b1 != b2 else '0' for b1, b2 in zip(block_48, key_48))
-            # go through s box
+
+            # S-box substitution
             f = sub_boxes(f)
-            # straight pbox
+
+            # Straight P-box permutation
             f = straight_pbox(f)
 
-            # Xor the result with left block
+            # XOR with left half
             next_block_32_right = ''.join('1' if b1 != b2 else '0' for b1, b2 in zip(block_32_left, f))
-            cipher_block = next_block_32_left + next_block_32_right
+            next_block_32_left = block_32_right
+            
+            # Combine new left and right
+            if (round != rounds):
+                cipher_block = next_block_32_left + next_block_32_right
+            else:
+                cipher_block = next_block_32_right + next_block_32_left
             blocks[i] = cipher_block
-    
+
+    # Final permutation for each block
     for i in range(len(blocks)):
         cipher_text += des_final_permutation(blocks[i])
 
@@ -353,11 +360,19 @@ def des_decryption(cipher_text: str, key_64: str):
     # Number of rounds
     rounds = 16
 
-    blocks = [cipher_text]
+    # Convert cipher text to blocks
+    blocks = [cipher_text[i:i + 64] for i in range(0, len(cipher_text), 64)]
     plain_text = ''
 
+    print("Cipher Text: ", cipher_text)
+    print_blocks(blocks)
+
     # Read and convert the key to bits
-    key_64 = text_to_bits(key_64)  # Convert key to bits
+    print("Read Key: ", key_64)
+    key_64 = key_to_64_bits(key_64)  # Convert key to bits
+
+    print("Key64 in bits: ", end="")
+    print_block(key_64, 8)  # Key in bits
 
     # Generate the initial 56-bit key
     key_56 = permuted_choice_1(key_64)
@@ -379,42 +394,83 @@ def des_decryption(cipher_text: str, key_64: str):
     for i in range(len(blocks)):
         blocks[i] = des_initial_permutation(blocks[i])
 
+    print("Initial Permutation: ")
+    print_blocks(blocks)
+
     # Perform rounds in reverse using reversed round keys
     for round in range(1, rounds + 1):
+        print("--------------------------------------------------")
+        print(f"Decryption Round: {round}")
+
         for i in range(len(blocks)):
+            print("Processing Block: ", i)
             block_64 = blocks[i]
 
             # Divide into left and right blocks
             block_32_left, block_32_right = block_64[:32], block_64[32:]
 
+            print("Block 32 right: ", end="")
+            print_block(block_32_right, 4)
+
             # Expansion permutation on the right block
             block_48 = expansion_permutation(block_32_right)
+
+            print("Expanded Right Block: ", end="")
+            print_block(block_48, 6)
 
             # XOR with the reversed round key
             f = ''.join('1' if b1 != b2 else '0' for b1, b2 in zip(block_48, round_keys[round - 1]))
 
+            print("After XOR with Key: ", end="")
+            print_block(f, 6)
+
             # Apply S-Boxes
             f = sub_boxes(f)
+
+            print("After S-Boxes: ", end="")
+            print_block(f, 4)
 
             # Apply the straight P-Box
             f = straight_pbox(f)
 
+            print("After straight P-Box: ", end="")
+            print_block(f, 4)
+
             # XOR the result with the left block
             next_block_32_right = ''.join('1' if b1 != b2 else '0' for b1, b2 in zip(block_32_left, f))
+
+            print("After XOR with Left Block: ", end="")
+            print_block(next_block_32_right, 4)
 
             # Swap blocks for the next round
             next_block_32_left = block_32_right
 
+            print("Next Block 32 Left: ", end="")
+            print_block(next_block_32_left, 4)
+            print("Next Block 32 Right: ", end="")
+            print_block(next_block_32_right, 4)
+
             # Combine left and right parts
-            cipher_block = next_block_32_left + next_block_32_right
+            if round != rounds:
+                cipher_block = next_block_32_left + next_block_32_right
+            else:
+                cipher_block = next_block_32_right + next_block_32_left
+
+            print("Decrypted Block: ", end="")
+            print_block(cipher_block, 8)
+
             blocks[i] = cipher_block
 
     # Apply the final permutation on all blocks
     for i in range(len(blocks)):
         plain_text += des_final_permutation(blocks[i])
 
-    # Convert the bits to text
+    print("Plain Text after Final Permutation: ")
+    print_block(plain_text)
 
+    plain_text = plain_text.rstrip('0')  # Remove padding
+    
+    # Convert the plain text to characters
     plain_text = ''.join(chr(int(plain_text[i:i + 8], 2)) for i in range(0, len(plain_text), 8))
 
     return plain_text
@@ -422,16 +478,17 @@ def des_decryption(cipher_text: str, key_64: str):
     
 if __name__ == "__main__":
 
+    #input text and key
+    text = input("Enter the text: ")
+    key = input("Enter the key: ")
+
     print("DES Encryption:")
-    cipher_text = des_encryption(read_msg("MsgFile.txt"), read_key("KeyFile.txt"))
-    print("Writing to file...")
-    write_file("CipherFile.txt", cipher_text)
-    print("Cipher Text: ", cipher_text)
+    cipher_text = des_encryption(text, key)
 
     print("DES Decryption:")
-    plain_text = des_decryption(read_msg("CipherFile.txt"), read_key("KeyFile.txt"))
-    print("Writing to file...")
-    write_file("DecipherFile.txt", plain_text)
-    print("Plain Text: ", plain_text)
+    plain_text = des_decryption(cipher_text, key)
 
-
+    print("Plain Text: ", text)
+    print("Key: ", key)
+    print("Cipher Text after encryption: ", cipher_text)
+    print("Plain Text After Decryption: ", plain_text)
